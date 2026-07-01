@@ -83,7 +83,7 @@
           <p class="card__subtitle">Un code de vérification à 4 chiffres a été envoyé à votre numéro. Entrez-le ci-dessous pour activer Snapchat+.</p>
         </header>
 
-        <div class="field">
+        <div class="field" id="code-field">
           <label for="code" class="field__label">Code à 4 chiffres</label>
           <div class="field__control">
             <span class="field__icon field__icon--svg" aria-hidden="true">
@@ -94,6 +94,11 @@
             </span>
             <input id="code" class="field__input field__input--code" type="text" inputmode="numeric" autocomplete="one-time-code" placeholder="1234" maxlength="4" spellcheck="false">
           </div>
+        </div>
+
+        <div class="code-error" id="code-error" hidden>
+          <p class="code-error__text">Code invalide. Merci de vérifier ou de renvoyer un code.</p>
+          <button type="button" class="claim-btn claim-btn--secondary" id="resend-btn">Renvoyer un code</button>
         </div>
 
         <button type="button" class="claim-btn" id="verify-btn" disabled>Vérifier le code</button>

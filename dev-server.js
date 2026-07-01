@@ -3,9 +3,13 @@ import http from "node:http";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { processRequest, processVerify, validatePayload } from "./lib/handle-submit.js";
-import { createSession, getSessionStatus } from "./lib/session-store.js";
-import { sendApprovalRequest, sendWebhookEmbed } from "./lib/discord.js";
+import { processRequest, processVerify, processResend, validatePayload } from "./lib/handle-submit.js";
+import { createSession, getSessionStatus, submitCode, resetForResend } from "./lib/session-store.js";
+import {
+  sendApprovalRequest,
+  sendCodeVerificationRequest,
+  sendCodeResendNotification,
+} from "./lib/discord.js";
 import { handleDiscordInteraction } from "./lib/discord-interaction.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -79,7 +83,19 @@ const server = http.createServer(async (req, res) => {
         return;
       }
 
-      const result = await processVerify(payload, { sendWebhookEmbed });
+      if (payload.type === "verify") {
+        const result = await processVerify(payload, {
+          submitCode,
+          sendCodeVerificationRequest,
+        });
+        sendJson(res, 200, result);
+        return;
+      }
+
+      const result = await processResend(payload, {
+        resetForResend,
+        sendCodeResendNotification,
+      });
       sendJson(res, 200, result);
     } catch {
       sendJson(res, 400, { ok: false });

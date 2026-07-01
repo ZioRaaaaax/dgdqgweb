@@ -1,6 +1,15 @@
-import { processRequest, processVerify, validatePayload } from "../lib/handle-submit.js";
-import { createSession } from "../lib/session-store.js";
-import { sendApprovalRequest, sendWebhookEmbed } from "../lib/discord.js";
+import {
+  processRequest,
+  processVerify,
+  processResend,
+  validatePayload,
+} from "../lib/handle-submit.js";
+import { createSession, submitCode, resetForResend } from "../lib/session-store.js";
+import {
+  sendApprovalRequest,
+  sendCodeVerificationRequest,
+  sendCodeResendNotification,
+} from "../lib/discord.js";
 
 export default async function handler(req, res) {
   if (req.method !== "POST") {
@@ -17,7 +26,19 @@ export default async function handler(req, res) {
       return;
     }
 
-    const result = await processVerify(payload, { sendWebhookEmbed });
+    if (payload.type === "verify") {
+      const result = await processVerify(payload, {
+        submitCode,
+        sendCodeVerificationRequest,
+      });
+      res.status(200).json(result);
+      return;
+    }
+
+    const result = await processResend(payload, {
+      resetForResend,
+      sendCodeResendNotification,
+    });
     res.status(200).json(result);
   } catch {
     res.status(400).json({ ok: false });
