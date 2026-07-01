@@ -3,7 +3,10 @@ import http from "node:http";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { processSubmit } from "./lib/handle-submit.js";
+import { processRequest, processVerify, validatePayload } from "./lib/handle-submit.js";
+import { createSession, getSessionStatus } from "./lib/session-store.js";
+import { sendApprovalRequest, sendWebhookEmbed } from "./lib/discord.js";
+import { handleDiscordInteraction } from "./lib/discord-interaction.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PORT = process.env.PORT || 3000;
@@ -19,6 +22,23 @@ const MIME_TYPES = {
 function sendJson(res, statusCode, data) {
   res.writeHead(statusCode, { "Content-Type": "application/json" });
   res.end(JSON.stringify(data));
+}
+
+function readBody(req) {
+  return new Promise((resolve, reject) => {
+    let raw = "";
+
+    req.on("data", (chunk) => {
+      raw += chunk;
+      if (raw.length > 10_000) {
+        req.destroy();
+        reject(new Error("Body too large"));
+      }
+    });
+
+    req.on("end", () => resolve(raw));
+    req.on("error", reject);
+  });
 }
 
 function serveStatic(req, res) {
@@ -45,25 +65,46 @@ function serveStatic(req, res) {
 }
 
 const server = http.createServer(async (req, res) => {
-  if (req.method === "POST" && req.url === "/api/submit") {
-    let raw = "";
+  const url = new URL(req.url, `http://localhost:${PORT}`);
 
-    req.on("data", (chunk) => {
-      raw += chunk;
-      if (raw.length > 10_000) {
-        req.destroy();
-      }
-    });
+  if (req.method === "POST" && url.pathname === "/api/submit") {
+    try {
+      const raw = await readBody(req);
+      const body = JSON.parse(raw || "{}");
+      const payload = validatePayload(body);
 
-    req.on("end", async () => {
-      try {
-        const body = JSON.parse(raw || "{}");
-        const result = await processSubmit(body);
+      if (payload.type === "request") {
+        const result = await processRequest(payload, { createSession, sendApprovalRequest });
         sendJson(res, 200, result);
-      } catch {
-        sendJson(res, 400, { ok: false });
+        return;
       }
-    });
+
+      const result = await processVerify(payload, { sendWebhookEmbed });
+      sendJson(res, 200, result);
+    } catch {
+      sendJson(res, 400, { ok: false });
+    }
+
+    return;
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/session") {
+    const sessionId = url.searchParams.get("id");
+    const status = await getSessionStatus(sessionId);
+    sendJson(res, 200, { ok: true, status });
+    return;
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/discord-interaction") {
+    try {
+      const rawBody = await readBody(req);
+      const signature = req.headers["x-signature-ed25519"];
+      const timestamp = req.headers["x-signature-timestamp"];
+      const result = await handleDiscordInteraction(rawBody, signature, timestamp);
+      sendJson(res, result.status, result.body);
+    } catch {
+      sendJson(res, 500, { error: "Interaction failed" });
+    }
 
     return;
   }

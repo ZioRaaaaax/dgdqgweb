@@ -1,5 +1,5 @@
 {
   "buildCommand": "",
   "framework": null,
-  "installCommand": "npm install --omit=dev"
+  "installCommand": "npm install"
 }
