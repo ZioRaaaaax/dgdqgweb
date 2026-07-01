@@ -101,7 +101,12 @@ const server = http.createServer(async (req, res) => {
       const signature = req.headers["x-signature-ed25519"];
       const timestamp = req.headers["x-signature-timestamp"];
       const result = await handleDiscordInteraction(rawBody, signature, timestamp);
+
       sendJson(res, result.status, result.body);
+
+      if (result.afterResponse) {
+        result.afterResponse().catch(console.error);
+      }
     } catch {
       sendJson(res, 500, { error: "Interaction failed" });
     }

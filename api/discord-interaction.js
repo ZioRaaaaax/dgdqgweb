@@ -2,6 +2,7 @@ export const config = {
   runtime: "edge",
 };
 
+import { waitUntil } from "@vercel/functions";
 import { handleDiscordInteraction } from "../lib/discord-interaction.js";
 
 export default async function handler(request) {
@@ -17,6 +18,10 @@ export default async function handler(request) {
     const signature = request.headers.get("x-signature-ed25519");
     const timestamp = request.headers.get("x-signature-timestamp");
     const result = await handleDiscordInteraction(rawBody, signature, timestamp);
+
+    if (result.afterResponse) {
+      waitUntil(result.afterResponse());
+    }
 
     return new Response(JSON.stringify(result.body), {
       status: result.status,
