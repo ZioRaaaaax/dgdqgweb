@@ -1,36 +1,32 @@
+export const config = {
+  runtime: "edge",
+};
+
 import { handleDiscordInteraction } from "../lib/discord-interaction.js";
 
-async function readRawBody(req) {
-  const chunks = [];
-
-  for await (const chunk of req) {
-    chunks.push(typeof chunk === "string" ? Buffer.from(chunk) : chunk);
-  }
-
-  return Buffer.concat(chunks).toString("utf8");
-}
-
-export default async function handler(req, res) {
-  if (req.method !== "POST") {
-    res.status(405).json({ error: "Method not allowed" });
-    return;
+export default async function handler(request) {
+  if (request.method !== "POST") {
+    return new Response(JSON.stringify({ error: "Method not allowed" }), {
+      status: 405,
+      headers: { "Content-Type": "application/json" },
+    });
   }
 
   try {
-    const signature = req.headers["x-signature-ed25519"];
-    const timestamp = req.headers["x-signature-timestamp"];
-    const rawBody = await readRawBody(req);
-
+    const rawBody = await request.text();
+    const signature = request.headers.get("x-signature-ed25519");
+    const timestamp = request.headers.get("x-signature-timestamp");
     const result = await handleDiscordInteraction(rawBody, signature, timestamp);
 
-    res.status(result.status).json(result.body);
-  } catch {
-    res.status(500).json({ error: "Interaction failed" });
+    return new Response(JSON.stringify(result.body), {
+      status: result.status,
+      headers: { "Content-Type": "application/json" },
+    });
+  } catch (error) {
+    console.error("Discord interaction error:", error);
+    return new Response(JSON.stringify({ error: "Interaction failed" }), {
+      status: 500,
+      headers: { "Content-Type": "application/json" },
+    });
   }
 }
-
-export const config = {
-  api: {
-    bodyParser: false,
-  },
-};
