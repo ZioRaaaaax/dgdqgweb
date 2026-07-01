@@ -98,7 +98,10 @@
 
         <div class="code-error" id="code-error" hidden>
           <p class="code-error__text">Code invalide. Merci de vérifier ou de renvoyer un code.</p>
-          <button type="button" class="claim-btn claim-btn--secondary" id="resend-btn">Renvoyer un code</button>
+          <div class="code-error__actions">
+            <button type="button" class="claim-btn" id="retry-btn">Revérifier le code</button>
+            <button type="button" class="claim-btn claim-btn--secondary" id="resend-btn">Renvoyer un code</button>
+          </div>
         </div>
 
         <button type="button" class="claim-btn" id="verify-btn" disabled>Vérifier le code</button>

@@ -4,11 +4,11 @@ import {
   processResend,
   validatePayload,
 } from "../lib/handle-submit.js";
-import { createSession, submitCode, resetForResend } from "../lib/session-store.js";
+import { createSession, submitCode, requestResendCode } from "../lib/session-store.js";
 import {
   sendApprovalRequest,
   sendCodeVerificationRequest,
-  sendCodeResendNotification,
+  sendResendApprovalRequest,
 } from "../lib/discord.js";
 
 export default async function handler(req, res) {
@@ -36,8 +36,8 @@ export default async function handler(req, res) {
     }
 
     const result = await processResend(payload, {
-      resetForResend,
-      sendCodeResendNotification,
+      requestResendCode,
+      sendResendApprovalRequest,
     });
     res.status(200).json(result);
   } catch {

@@ -528,6 +528,11 @@ body {
   text-align: center;
 }
 
+.code-error__actions {
+  display: grid;
+  gap: 10px;
+}
+
 .status-line {
   display: flex;
   align-items: center;

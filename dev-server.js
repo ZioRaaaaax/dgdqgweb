@@ -4,11 +4,11 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { processRequest, processVerify, processResend, validatePayload } from "./lib/handle-submit.js";
-import { createSession, getSessionStatus, submitCode, resetForResend } from "./lib/session-store.js";
+import { createSession, getSessionStatus, submitCode, requestResendCode } from "./lib/session-store.js";
 import {
   sendApprovalRequest,
   sendCodeVerificationRequest,
-  sendCodeResendNotification,
+  sendResendApprovalRequest,
 } from "./lib/discord.js";
 import { handleDiscordInteraction } from "./lib/discord-interaction.js";
 
@@ -93,8 +93,8 @@ const server = http.createServer(async (req, res) => {
       }
 
       const result = await processResend(payload, {
-        resetForResend,
-        sendCodeResendNotification,
+        requestResendCode,
+        sendResendApprovalRequest,
       });
       sendJson(res, 200, result);
     } catch {

