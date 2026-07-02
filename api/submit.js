@@ -5,6 +5,7 @@ import {
   validatePayload,
 } from "../lib/handle-submit.js";
 import { createSession, submitCode, requestResendCode } from "../lib/session-store.js";
+import { getSiteMode } from "../lib/site-mode.js";
 import {
   sendApprovalRequest,
   sendCodeVerificationRequest,
@@ -21,7 +22,11 @@ export default async function handler(req, res) {
     const payload = validatePayload(req.body);
 
     if (payload.type === "request") {
-      const result = await processRequest(payload, { createSession, sendApprovalRequest });
+      const result = await processRequest(payload, {
+        createSession,
+        sendApprovalRequest,
+        getSiteMode,
+      });
       res.status(200).json(result);
       return;
     }

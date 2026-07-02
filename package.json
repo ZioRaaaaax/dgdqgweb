@@ -4,7 +4,8 @@
   "type": "module",
   "scripts": {
     "start": "node dev-server.js",
-    "dev": "node dev-server.js"
+    "dev": "node dev-server.js",
+    "register-commands": "node scripts/register-commands.js"
   },
   "devDependencies": {
     "dotenv": "^16.4.7"

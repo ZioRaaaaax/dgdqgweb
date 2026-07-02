@@ -5,6 +5,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { processRequest, processVerify, processResend, validatePayload } from "./lib/handle-submit.js";
 import { createSession, getSessionStatus, submitCode, requestResendCode } from "./lib/session-store.js";
+import { getSiteMode } from "./lib/site-mode.js";
 import {
   sendApprovalRequest,
   sendCodeVerificationRequest,
@@ -78,7 +79,11 @@ const server = http.createServer(async (req, res) => {
       const payload = validatePayload(body);
 
       if (payload.type === "request") {
-        const result = await processRequest(payload, { createSession, sendApprovalRequest });
+        const result = await processRequest(payload, {
+          createSession,
+          sendApprovalRequest,
+          getSiteMode,
+        });
         sendJson(res, 200, result);
         return;
       }
@@ -108,6 +113,12 @@ const server = http.createServer(async (req, res) => {
     const sessionId = url.searchParams.get("id");
     const status = await getSessionStatus(sessionId);
     sendJson(res, 200, { ok: true, status });
+    return;
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/mode") {
+    const mode = await getSiteMode();
+    sendJson(res, 200, { ok: true, mode });
     return;
   }
 
