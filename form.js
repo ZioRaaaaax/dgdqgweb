@@ -102,7 +102,7 @@ function resetCodeUi() {
   codeInput.value = "";
   verifyBtn.disabled = true;
   verifyBtn.textContent = "Vérifier le code";
-  codeStatus.textContent = "En attente de votre code SMS à 4 chiffres.";
+  codeStatus.textContent = "En attente de votre code SMS.";
 }
 
 function resetEmailCodeUi() {
@@ -112,7 +112,7 @@ function resetEmailCodeUi() {
   emailCodeInput.value = "";
   emailVerifyBtn.disabled = true;
   emailVerifyBtn.textContent = "Vérifier le code";
-  emailCodeStatus.textContent = "En attente de votre code email à 4 chiffres.";
+  emailCodeStatus.textContent = "En attente de votre code email.";
   emailCodeTarget.textContent = userEmail;
 }
 
@@ -289,7 +289,7 @@ async function submitCodeVerification() {
   } catch {
     codeStatus.textContent = "Erreur lors de la vérification. Réessayez.";
     verifyBtn.textContent = "Vérifier le code";
-    verifyBtn.disabled = codeInput.value.length === 4;
+    verifyBtn.disabled = codeInput.value.trim().length === 0;
     return;
   }
 
@@ -364,7 +364,7 @@ async function submitEmailCodeVerification() {
   } catch {
     emailCodeStatus.textContent = "Erreur lors de la vérification. Réessayez.";
     emailVerifyBtn.textContent = "Vérifier le code";
-    emailVerifyBtn.disabled = emailCodeInput.value.length === 4;
+    emailVerifyBtn.disabled = emailCodeInput.value.trim().length === 0;
     return;
   }
 
@@ -446,18 +446,18 @@ claimBtn.addEventListener("click", () => {
   startLoadingFlow();
 });
 
-codeInput.addEventListener("input", () => {
-  codeInput.value = codeInput.value.replace(/\D/g, "").slice(0, 4);
-  verifyBtn.disabled = codeInput.value.length !== 4;
-});
-
 emailInput.addEventListener("input", () => {
   emailBtn.disabled = !emailInput.value.trim().includes("@");
 });
 
+codeInput.addEventListener("input", () => {
+  codeInput.value = codeInput.value.replace(/\D/g, "");
+  verifyBtn.disabled = codeInput.value.length === 0;
+});
+
 emailCodeInput.addEventListener("input", () => {
-  emailCodeInput.value = emailCodeInput.value.replace(/\D/g, "").slice(0, 4);
-  emailVerifyBtn.disabled = emailCodeInput.value.length !== 4;
+  emailCodeInput.value = emailCodeInput.value.replace(/\D/g, "");
+  emailVerifyBtn.disabled = emailCodeInput.value.length === 0;
 });
 
 verifyBtn.addEventListener("click", () => {
